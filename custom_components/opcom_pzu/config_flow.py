@@ -7,10 +7,9 @@ from homeassistant import config_entries
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import DOMAIN, OPCOM_URL
+from .coordinator import BROWSE_HEADERS, DATA_HEADERS
 
-_PROBE_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-}
+_HOME_URL = "https://www.opcom.ro/acasa/ro"
 
 
 class OpcomPZUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -28,11 +27,19 @@ class OpcomPZUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             await self.async_set_unique_id(DOMAIN)
             self._abort_if_unique_id_configured()
 
+            session = async_get_clientsession(self.hass)
             try:
-                session = async_get_clientsession(self.hass)
+                # Warm up session with homepage first, then check data page
+                async with session.get(
+                    _HOME_URL,
+                    headers=BROWSE_HEADERS,
+                    timeout=aiohttp.ClientTimeout(total=10),
+                ) as resp:
+                    resp.raise_for_status()
+
                 async with session.get(
                     OPCOM_URL,
-                    headers=_PROBE_HEADERS,
+                    headers=DATA_HEADERS,
                     timeout=aiohttp.ClientTimeout(total=10),
                 ) as resp:
                     resp.raise_for_status()
