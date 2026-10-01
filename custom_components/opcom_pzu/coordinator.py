@@ -14,14 +14,36 @@ from .const import DOMAIN, INTERVAL_CONFIGS, OPCOM_URL, SCAN_INTERVAL_MINUTES
 
 _LOGGER = logging.getLogger(__name__)
 
-_HEADERS = {
+_HOME_URL = "https://www.opcom.ro/acasa/ro"
+
+# Headers for the initial homepage visit (no Referer, Sec-Fetch-Site: none)
+BROWSE_HEADERS: dict[str, str] = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/120.0.0.0 Safari/537.36"
     ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "ro-RO,ro;q=0.9,en;q=0.8",
+    "Accept": (
+        "text/html,application/xhtml+xml,application/xml;"
+        "q=0.9,image/avif,image/webp,image/apng,*/*;"
+        "q=0.8,application/signed-exchange;v=b3;q=0.7"
+    ),
+    "Accept-Language": "ro-RO,ro;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+    "Cache-Control": "max-age=0",
+}
+
+# Headers for the data page — adds Referer and changes Sec-Fetch-Site
+DATA_HEADERS: dict[str, str] = {
+    **BROWSE_HEADERS,
+    "Referer": _HOME_URL,
+    "Sec-Fetch-Site": "same-origin",
 }
 
 
@@ -37,15 +59,53 @@ class OpcomPZUCoordinator(DataUpdateCoordinator):
         )
         self._session = session
 
-    async def _async_update_data(self) -> dict[str, list[float]]:
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    async def _warm_session(self) -> None:
+        """Visit the OPCOM homepage to pick up session cookies."""
         try:
             async with self._session.get(
-                OPCOM_URL,
-                headers=_HEADERS,
-                timeout=aiohttp.ClientTimeout(total=30),
+                _HOME_URL,
+                headers=BROWSE_HEADERS,
+                timeout=aiohttp.ClientTimeout(total=15),
             ) as resp:
                 resp.raise_for_status()
-                html = await resp.text(errors="replace")
+                _LOGGER.debug("Session warmed up via OPCOM homepage")
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.warning("Session warmup failed (will still try data page): %s", err)
+
+    async def _fetch_page(self) -> str:
+        """Fetch the PZU data page and return its HTML."""
+        async with self._session.get(
+            OPCOM_URL,
+            headers=DATA_HEADERS,
+            timeout=aiohttp.ClientTimeout(total=30),
+        ) as resp:
+            resp.raise_for_status()
+            return await resp.text(errors="replace")
+
+    # ------------------------------------------------------------------
+    # DataUpdateCoordinator
+    # ------------------------------------------------------------------
+
+    async def _async_update_data(self) -> dict[str, list[float]]:
+        try:
+            html = await self._fetch_page()
+        except aiohttp.ClientResponseError as err:
+            if err.status == 403:
+                # Server rejected the request — warm up session and retry once
+                _LOGGER.debug("403 on data page; warming session and retrying")
+                await self._warm_session()
+                try:
+                    html = await self._fetch_page()
+                except aiohttp.ClientError as retry_err:
+                    raise UpdateFailed(
+                        f"Error fetching OPCOM page after session warmup: {retry_err}"
+                    ) from retry_err
+            else:
+                raise UpdateFailed(f"HTTP {err.status} from OPCOM") from err
         except aiohttp.ClientError as err:
             raise UpdateFailed(f"Error fetching OPCOM page: {err}") from err
 
@@ -117,7 +177,6 @@ def _parse_html(html: str) -> dict[str, list[float]]:
             cells = row.find_all("td")
             if not cells:
                 continue
-            # Price column position varies; probe indices 2 → 3 → 1
             for col in (2, 3, 1):
                 if col < len(cells):
                     price = _parse_price(cells[col].get_text())
