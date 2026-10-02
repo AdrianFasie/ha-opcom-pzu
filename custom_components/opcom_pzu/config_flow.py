@@ -1,14 +1,12 @@
 """Config flow for OPCOM PZU."""
 from __future__ import annotations
 
-from datetime import datetime
-
 import aiohttp
 
 from homeassistant import config_entries
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import DOMAIN, OPCOM_XML_URL, ROMANIA_TZ
+from .const import DOMAIN
 
 _HOME_URL = "https://www.opcom.ro/acasa/ro"
 _EXPORT_PAGE_URL = "https://www.opcom.ro/grafice-ip-raportPIP-si-volumTranzactionat/ro"
@@ -54,27 +52,18 @@ class OpcomPZUConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             await self.async_set_unique_id(DOMAIN)
             self._abort_if_unique_id_configured()
 
-            today = datetime.now(ROMANIA_TZ).date()
-            xml_url = OPCOM_XML_URL.format(
-                day=today.day, month=today.month, year=today.year
-            )
             session = async_get_clientsession(self.hass)
             try:
-                # Warm up session with homepage first
+                # Any HTTP response (even 403) means the server is reachable.
+                # The coordinator handles auth/warmup at runtime — here we only
+                # need to confirm basic network connectivity to opcom.ro.
                 async with session.get(
                     _HOME_URL,
                     headers=_BROWSE_HEADERS,
                     timeout=aiohttp.ClientTimeout(total=10),
-                ) as resp:
-                    resp.raise_for_status()
-
-                # Then verify the XML export endpoint
-                async with session.get(
-                    xml_url,
-                    headers=_DATA_HEADERS,
-                    timeout=aiohttp.ClientTimeout(total=10),
-                ) as resp:
-                    resp.raise_for_status()
+                    allow_redirects=True,
+                ):
+                    pass
             except (aiohttp.ClientError, TimeoutError):
                 errors["base"] = "cannot_connect"
             else:
