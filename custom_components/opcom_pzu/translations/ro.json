@@ -1,0 +1,16 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "OPCOM PZU",
+        "description": "Conectare la piața pentru ziua următoare (PZU) de pe opcom.ro.\n\nVa fi creat un singur senzor care afișează prețul intervalului curent de 15 minute în RON/MWh. Prețurile pentru astăzi și mâine sunt stocate ca statistici pentru a putea fi reprezentate grafic."
+      }
+    },
+    "abort": {
+      "already_configured": "Acest serviciu este deja configurat."
+    },
+    "error": {
+      "cannot_connect": "Nu s-a putut conecta la site-ul OPCOM. Verificați conexiunea la internet și încercați din nou."
+    }
+  }
+}

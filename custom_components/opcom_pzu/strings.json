@@ -1,0 +1,16 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "OPCOM PZU",
+        "description": "Connect to the Romanian day-ahead electricity market (PZU) on opcom.ro.\n\nOne sensor will be created showing the current 15-minute interval price in RON/MWh. Prices for today and tomorrow are stored as statistics so you can graph the full day curve."
+      }
+    },
+    "abort": {
+      "already_configured": "[%key:common::config_flow::abort::already_configured_service%]"
+    },
+    "error": {
+      "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]"
+    }
+  }
+}

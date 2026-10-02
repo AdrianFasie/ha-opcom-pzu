@@ -1,0 +1,26 @@
+# OPCOM PZU — no configuration.yaml entry needed.
+#
+# Setup is done entirely via the Home Assistant UI:
+#   Settings → Devices & Services → Add Integration → search "OPCOM PZU"
+#
+# This creates one sensor:
+#   sensor.opcom_pzu   — price in RON/MWh for the current 15-min interval
+#
+# Sensor attributes:
+#   current_interval     — e.g. "14:00–14:15"
+#   price_date           — date the current prices cover
+#   today_prices         — {"00:00": 977.08, "00:15": 983.58, ...}  (96 entries)
+#   tomorrow_available   — true once next-day prices are published (12:00–18:00)
+#   tomorrow_date        — date of tomorrow's prices
+#   tomorrow_prices      — {"00:00": 854.10, ...}  (96 entries, when available)
+#   statistic_id         — "opcom_pzu:pzu_price"  (use this in the statistics-graph card)
+#
+# Lovelace card — full price curve including future intervals:
+#
+#   type: statistics-graph
+#   entities:
+#     - opcom_pzu:pzu_price
+#   period: day
+#   stat_types:
+#     - mean
+#   title: PZU Electricity Price (RON/MWh)
