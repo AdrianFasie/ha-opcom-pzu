@@ -70,7 +70,7 @@ After installation and restart:
 
 1. Go to **Settings → Devices & Services → Add Integration**
 2. Search for **OPCOM PZU**
-3. Click **Submit** — HA verifies connectivity and creates the integration
+3. Click **Submit** — the integration is created and starts loading prices
 
 No YAML configuration needed.
 
