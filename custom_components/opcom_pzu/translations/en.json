@@ -1,0 +1,16 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "OPCOM PZU",
+        "description": "Connect to the Romanian day-ahead electricity market (PZU) on opcom.ro.\n\nThree sensors will be created — **PT15**, **PT30**, and **PT60** — each showing the price in RON/MWh for the current time interval."
+      }
+    },
+    "abort": {
+      "already_configured": "This service is already configured."
+    },
+    "error": {
+      "cannot_connect": "Unable to connect to the OPCOM website. Please check your internet connection and try again."
+    }
+  }
+}
