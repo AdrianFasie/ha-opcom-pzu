@@ -8,7 +8,7 @@ from datetime import date, datetime, timedelta
 import aiohttp
 
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
     DOMAIN,
@@ -130,8 +130,14 @@ class OpcomPZUCoordinator(DataUpdateCoordinator):
         else:
             prices = await self._fetch_prices(today)
             if not prices:
-                raise UpdateFailed(f"Could not load PZU prices for {today}")
-            self._today_prices = prices
+                # Don't raise UpdateFailed — let the sensor be unavailable and retry next tick
+                _LOGGER.warning(
+                    "Could not load PZU prices for %s; sensor will be unavailable until next retry",
+                    today,
+                )
+                self._today_prices = []
+            else:
+                self._today_prices = prices
 
         self._today_date = today
         self._tomorrow_prices = []
@@ -145,7 +151,8 @@ class OpcomPZUCoordinator(DataUpdateCoordinator):
             self._tomorrow_loaded = True
             _LOGGER.info("Tomorrow's PZU prices (%s) loaded at startup", tomorrow)
 
-        self._inject_statistics()
+        if self._today_prices:
+            self._inject_statistics()
 
     # ------------------------------------------------------------------
     # HTTP fetch + XML parse
